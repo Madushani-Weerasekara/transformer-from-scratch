@@ -149,5 +149,20 @@ class Encoder(nn.Module):
             x = layer(x, mask)
         return self.norm(x) # Apply the normlaization
 
+class DecoderBlock(nn.Module):
+    def __init__(self, self_attention_block: MultiHeadAttentionBlok, cross_attention_block: MultiHeadAttentionBlok, feed_forward_block: FeedForwardBlock, dropout: float) ->None:
+        super().__init__()
+        self.self_attention_block = self_attention_block
+        self.cross_attention_block = cross_attention_block
+        self.feed_forward_block = feed_forward_block
+        # Define Residual connections. In this case we have 3 of them
+        self.residual_connections = nn.ModuleList([ResidulConnection(dropout) for _ in range(3)])
+
+    def forward(self, x, encoder_output, src_mask, tgt_msk):
+        x = self.residual_connections[0](x, lambda x: self.self_attention_block(x, x, x, tgt_msk)) # 1st Residual connection(Self-Attention Block of the Decoder)
+        x = self.residual_connections[1](x, lambda x: self.cross_attention_block(x, encoder_output, encoder_output, src_mask)) # 2nd Residual connection(Cross-Attention Block)
+        x = self.residual_connections[2](x, self.feed_forward_block) # 3rd Residual connection(Feed Forward Block)
+        return x
+    
 
 
