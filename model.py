@@ -98,9 +98,6 @@ class MultiHeadAttentionBlok(nn.Module):
         return (attention_scores @ value), attention_scores
 
 
-        
-
-
     def forward(self, q, k, v, mask):
         query = self.w_q(q) # (Batch, seq_len, d_model) --> (Batch, seq_len, d_model)
         key = self.w_k(k) # (Batch, seq_len, d_model) --> (Batch, seq_len, d_model)
@@ -117,6 +114,30 @@ class MultiHeadAttentionBlok(nn.Module):
         x = x.transpose(1, 2).contiguous().view(x.shape[0], -1, self.h * self.d_k)
         # (Batch, seq_len, d_model) --> (Batch, seq_len, d_model)
         return self.w_o(x)
+    
+class ResidulConnection(nn.Module):
+    def __init__(self, droptout: float) -> None:
+        super().__init__()
+        self.dropout = nn.Dropout(droptout)
+        self.norm = LayerNormalization()
+
+    def forward(self, x, sublayer):
+        return x + self.dropout(sublayer(self.norm(x)))
+    
+# Encoder Block
+class EncoderBlock(nn.Module):
+    def __init__(self, self_attention_block: MultiHeadAttentionBlok, feed_forward_block: FeedForwardBlock, dropout: float) -> None:
+        super().__init__()
+        self.self_attention_block = self_attention_block
+        self.feed_forward_block = feed_forward_block
+        # Now we define the two residual connections
+        self.residual_connections = nn.ModuleList([ResidulConnection(dropout) for _ in range(2)])
+
+    def forward(self, x, src_mask):
+        x = self.residual_connections[0](x, lambda x: self.self_attention_block(x, x, x, src_mask)) # 1st Residual connection
+        x = self.residual_connections[1](self.feed_forward_block)
+        return x
+        
 
 
 
