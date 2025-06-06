@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.utils.data import Dataset, Dataloader, random_split
 
 from datasets import load_dataset
 from tokenizers import Tokenizer
@@ -25,3 +26,16 @@ def get_or_build_tokenizer(config, ds, lang):
         tokenizer = Tokenizer.from_file(str(tokenizer_path))
     return tokenizer
 
+# Load the dataset
+def get_ds(config):
+    ds_raw = load_dataset('opus_books', f'{config["lang_src"]}-{config["lang_tgt"]}', split='train') # Load the dataset and make configurable to change the language
+
+    # Build tokenizers
+    tokenizer_src = get_or_build_tokenizer (config, ds_raw, config['lang_src']) # For source language
+    tokenizer_tgt = get_or_build_tokenizer(config, ds_raw, config['lang_tgt']) # For taget language
+
+    # Keep 90% training & 10% for validation
+    train_ds_size = int(0.9 * len(ds_raw))
+    val_ds_size = int(ds_raw) - train_ds_size
+    train_ds_raw, val_ds_raw = random_split(ds_raw, [train_ds_size, val_ds_size])
+    
